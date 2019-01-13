@@ -1,6 +1,9 @@
 import time
 import requests
 import utils
+from datetime import datetime as dt
+from dateutil.relativedelta import relativedelta
+import templatebuilder
 
 
 class skapi:
@@ -12,22 +15,18 @@ class skapi:
         "pipeline_status": "https://spaceknow-tasking.appspot.com/tasking/get-status",
     }
     header = None
+    authenticated_time = None
 
     def __init__(self, credentials):
         """
-
         :param credentials:
         dictionary with client id("id"), username("user") and password("pass")
         """
-        self.auth_json = {
-            "client_id": credentials["id"],
-            "username": credentials["user"],
-            "password": credentials["pass"],
-            "connection": "Username-Password-Authentication",
-            "grant_type": "password",
-            "scope": "openid"
-        }
 
+        self.auth_json = templatebuilder.get_auth_template(credentials["id"], credentials["user"],
+                                                           credentials["pass"])
+
+    # todo create decorator
     def get_paged(self, init_url, request_json, retrieve_url, process_response):
         """
         Works with async api.
@@ -48,6 +47,7 @@ class skapi:
         results = []
         while True:
             init_json = self.post(init_url, request_json)
+
             pipeline_id, next_try = self.__init(init_json)
             self.__wait(pipeline_id, next_try)
             retrieved_content = self.post(retrieve_url, json={"pipelineId": pipeline_id})
@@ -95,7 +95,7 @@ class skapi:
 
     def post(self, url, json):
         """
-        Performs authenticated POST request
+        Performs authenticated POST request and return its body
         :param url: url
         :param json: request payload
         :return: dict
@@ -103,7 +103,12 @@ class skapi:
         """
         self.__authenticate()
         response = requests.post(url, json=json, headers=self.header)
-        return utils.decode_content(response)
+
+        content = utils.decode_content(response)
+        print(content)
+        if "error" in content:
+            raise Exception("post request was unsuccessful")
+        return  content
 
     def get(self, url):
         """
@@ -119,17 +124,35 @@ class skapi:
         Throws error upon invalid authentication
         """
 
-        if self.header:
-            # todo handle token expiration
+        if self.header and not self.__hasTokenExpired():
             return
 
         url_authorized = "https://spaceknow.auth0.com/oauth/ro"
+
         auth = requests.post(url_authorized, json=self.auth_json)
         decoded = utils.decode_content(auth)
+        print(decoded)
         if "id_token" not in decoded:
-            # todo use more precise exception
-            raise ValueError("Authentication was unsuccessful!")
+            raise Exception("Authentication was unsuccessful! Id token is missing.")
 
         token = decoded["id_token"]
         self.header = {"authorization": "Bearer " + token,
                        "content-type": "application/json;charset=utf-8"}
+        self.authenticated_time = dt.utcnow()
+
+    def __hasTokenExpired(self):
+        """
+        checks whether token has expired (expiration is set to 10 hours)
+        :return: bool
+            True if token has expired, False otherwise
+        """
+
+        if not self.authenticated_time:
+            return False
+
+        now = dt.utcnow()
+        diff = relativedelta(now, self.authenticated_time)
+
+        limit_hours = 10
+
+        return diff.hours < limit_hours

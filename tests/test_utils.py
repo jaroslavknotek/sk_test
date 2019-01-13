@@ -1,10 +1,7 @@
 import unittest
-import src
-import io
 import numpy as np
 import src.utils as utils
 from PIL import Image
-
 
 class UtilsTestCase(unittest.TestCase):
     def test_order2d_2x2(self):

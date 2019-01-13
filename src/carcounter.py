@@ -120,8 +120,12 @@ class CarCounter:
         imgs = []
 
         def get_img_from_url(url):
-            response = self.skapi.get(url)
-            return Image.open(BytesIO(response.content))
+            try:
+                response = self.skapi.get(url)
+                return Image.open(BytesIO(response.content))
+            except:
+                return None
+
 
         # i need them to be in the same order no matter what
         both_tile_info = zip(sorted(cars_tile_info, key=lambda x: str(x[3]) + str(x[4]))
@@ -136,6 +140,7 @@ class CarCounter:
             blended = Image.blend(imagery_img, cars_img, .6)
             tile_xy = (cars_ti[3], cars_ti[4])
             imgs.append((tile_xy, blended))
+
         new_im = utils.construct_image(imgs)
         return new_im
 
@@ -154,8 +159,9 @@ class CarCounter:
             response = self.skapi.get(url)
             feature_json = utils.decode_content(response)
 
-            presumed_cars_list = [(f.get("properties",{}).get("class",""), f.get("properties",{}).get("count", 0)) for f in
-                                  feature_json.get("features",{})]
+            presumed_cars_list = [(f.get("properties", {}).get("class", ""), f.get("properties", {}).get("count", 0))
+                                  for f in
+                                  feature_json.get("features", {})]
             presumed_cars_amount = sum([count for cls, count in presumed_cars_list if cls == "cars"])
             count = count + presumed_cars_amount
         return count
@@ -172,7 +178,7 @@ class CarCounter:
             url of retrieve endpoint
         :return: array
             5 tile parameters
-            [map_id,geometry_id,zoom,x,y]
+            [map_id, geometry_id, zoom, x, y]
         """
 
         kraken_init_json = templatebuilder.get_kraken_init_request(scene_id, self.polygon)
@@ -182,10 +188,10 @@ class CarCounter:
             geometry_id = "-"
             tile_info_array = []
             for tile in response["tiles"]:
+                # todo replace with some structure
                 tile_info = [map_id, geometry_id, str(tile[0]), str(tile[1]), str(tile[2])]
                 tile_info_array.append(tile_info)
             return tile_info_array
 
         return self.skapi.get_paged(url_init, kraken_init_json, url_retrieve, process)
 
-        return tile_info_array

@@ -9,11 +9,13 @@ def construct_image(imgs):
     Missing images will disrupt whole image
     :param imgs: array of tuples
         Array of images and its metadata
-        Tuples consist of ( coordinates,image)
+        Tuples consist of (coordinates,image)
         Coordinates are used to properly order images before joining
     :return: Image
         single image
     """
+
+    # todo fill missing pieces and
 
     if len(imgs) == 0:
         return None
@@ -52,6 +54,6 @@ def decode_content(request):
     :param request: request
     :return:
     """
-    print(request.content)
-    decoded = request.content.decode('utf8')  # .replace("'", '"')
+    # print(request.content)
+    decoded = request.content.decode('utf8')
     return json.loads(decoded)
